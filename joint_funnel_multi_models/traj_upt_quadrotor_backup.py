@@ -30,6 +30,7 @@ x_traj = np.zeros([T, n])
 x_traj[0] = x_0
 u_traj = np.zeros([T - 1, m])
 W_traj = ct.W_traj
+mass = 0.0293
 mass = ct.mass
 K_traj = ct.K0_traj
 Q_traj = ct.Q0_traj
@@ -37,12 +38,11 @@ Q_traj = ct.Q0_traj
 ## control constraints
 tau_max = ct.tau_max
 
-
 ## simulate the traj and check linearization
-# for t in range(T - 1):
-#     u_traj[t] = np.array([mass * ct.g, 0, 0., 0])
-#     # u_traj[t] = np.zeros(4)
-#     x_traj[t + 1] = Integrator.RK4(dt, x_traj[t], u_traj[t], W_traj[t])
+for t in range(T - 1):
+    u_traj[t] = np.array([mass * ct.g, 0, 0., 0])
+    # u_traj[t] = np.zeros(4)
+    x_traj[t + 1] = Integrator.RK4(dt, x_traj[t], u_traj[t], W_traj[t])
 
 
 # plotting3d_fcn(x_traj, Q_traj)
@@ -69,9 +69,9 @@ def cost_subproblem_fun(x_traj, u_traj, x_des, d, w, v, s):
     ## running cost
     for t in range(T - 1):
         ## for objective
-        # f0 += cp.norm(x_traj[t] + d[t] - x_des, 2) * 0.4 * (t)
+        f0 += cp.norm(x_traj[t] + d[t] - x_des, 2) * 0.4 * (t)
         # f0 += cp.norm(x_traj[t,2] + d[t,2],2)
-        f0 += 20*cp.norm(u_traj[t,0] + w[t,0], 2) ** 2
+        # f0 += 20*cp.norm(u_traj[t,0] + w[t,0], 2)
         ## for constraints
         f0 += 1000 * cp.norm(v[t], 1)
         # ## for obs
@@ -145,7 +145,7 @@ def solve_subproblem(A_list, B_list, trajs, x_des) -> tuple:
             LHS = h_j + a @ d_t[0:3]  ## obs constraints
             Q_t_root = sqrtm(Q_t[0:3, 0:3])
             LHS += LA.norm(Q_t_root @ a, 2)
-            # constraints.append(LHS <= s_t[j])
+            constraints.append(LHS <= s_t[j])
             # constraints.append(h_j - 2 * (x_t[0:2] - obs_j) @ d_t[0:2] <= s_t[j])
             constraints.append(s_t[j] >= 0)
     #
@@ -165,9 +165,9 @@ def solve_subproblem(A_list, B_list, trajs, x_des) -> tuple:
 
 def traj_gen(x_traj, u_traj, Q_traj, K_traj, main_iter) -> tuple:
     if main_iter == 0:
-        max_iter = 20
+        max_iter = 30
     else:
-        max_iter = 20
+        max_iter = 30
     W_traj = np.zeros([T - 1, ct.nw])
     subproblem_cost_old = 0
     for iter in range(max_iter):
@@ -184,18 +184,56 @@ def traj_gen(x_traj, u_traj, Q_traj, K_traj, main_iter) -> tuple:
             x_traj += d_traj
             u_traj += w_traj
         print("cost diff:   ", np.abs(subproblem_cost_old - subproblem_cost))
-        if np.abs(subproblem_cost_old - subproblem_cost) <= 0.01 or iter > 30:
-            print("Sol converged")
+        if np.abs(subproblem_cost_old - subproblem_cost) <= 0.1 and iter > 30:
             break
 
-        # if np.abs(subproblem_cost_old - subproblem_cost) <= 0.01 or iter > 25:
-        #     plotting3d_fcn(x_traj, Q_traj)
+        if np.abs(subproblem_cost_old - subproblem_cost) <= 0.1 or iter > 25:
+            plotting3d_fcn(x_traj, Q_traj)
         subproblem_cost_old = subproblem_cost
         ## plotting
         # if iter % 5 == 0:
         #     plotting_fcn(x_traj, u_traj)
-    # plotting3d_fcn(x_traj, Q_traj)
+        print(x_traj[-1, 0:3])
     return x_traj, u_traj, A_list, B_list, F_list
 
-#
-# [x_traj, u_traj, A_list, B_list] = traj_gen(x_traj, u_traj, Q_traj, K_traj, 0)
+
+def plotting_fcn(x_traj, u_traj, Q_traj):
+    fig, ax = plt.subplots()
+    for t in range(T - 1):
+        theta = x_traj[t, 2]
+        leng = 0.4
+        heading_vector = np.array([[x_traj[t, 0], x_traj[t, 1]],
+                                   [x_traj[t, 0] + leng * np.cos(theta), x_traj[t, 1] + leng * np.sin(theta)]])
+
+        ax.plot(heading_vector[:, 0], heading_vector[:, 1], "r")
+        ax.plot(x_traj[t, 0], x_traj[t, 1], "g.")
+        ax.plot(x_des[0], x_des[1], "go")
+
+        ## plotting circles
+        # theta_grid = np.linspace(0, 2 * np.pi, 101)
+        # for j in range(num_obs):
+        #     x_theta_j = obs[j, 0] + np.cos(theta_grid) * obs_r
+        #     y_theta_j = obs[j, 1] + np.sin(theta_grid) * obs_r
+        #     ax.plot(x_theta_j, y_theta_j)
+
+        ## plotting the ellipsoid
+        Q_t = Q_traj[t, 0:2, 0:2]
+        # Eigen-decomposition (ascending order from eigh)
+        vals, vecs = LA.eigh(Q_t)
+        order = vals.argsort()[::-1]  # sort descending so index 0 is largest
+        vals = vals[order]
+        vecs = vecs[:, order]
+        vmax = vecs[:, 0]
+        angle_deg = np.degrees(np.arctan2(vmax[1], vmax[0]))
+        ell = Ellipse(xy=(x_traj[t, 0], x_traj[t, 1]), width=2 * np.sqrt(vals[0]), height=2 * np.sqrt(vals[1]),
+                      angle=angle_deg, fill=True, alpha=0.5)
+        ax.add_patch(ell)
+        ax.set_aspect('equal', adjustable='box')
+
+        plt.pause(0.01)
+        if t == T - 2:
+            plt.show()
+    plt.clf()
+
+
+[x_traj, u_traj, A_list, B_list] = traj_gen(x_traj, u_traj, Q_traj, K_traj, 0)

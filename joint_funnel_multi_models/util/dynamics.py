@@ -61,6 +61,9 @@ def quadrotor(x_t: jnp.array, u_t: jnp.array, W_t: jnp.array) -> jnp.array:
     f_T_b = jnp.array([0, 0, -T])  ## in body frame
     f_T_i = quat_rotate(q, f_T_b)
     f_net_i = f_T_i + f_g_i
+    # f_net_i += W_t * 0.01
+    f_wind = 0.01 * jnp.array([0.05*W_t[0], 0.05*W_t[1], 0 * W_t[2]])
+    f_net_i += f_wind
     # f_net_i = f_T_b+ f_g_i
 
     ## states rates
