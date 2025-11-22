@@ -45,6 +45,9 @@ def quadrotor(x_t: jnp.array, u_t: jnp.array, W_t: jnp.array) -> jnp.array:
     ## states: position (NED), velocity(NED), quaternion (body), angular rates (body)
     ## note that the z axis is pointing down
     ## control: thrust, torque
+    # mass = 0.0293
+    # g = 9.81
+    # J = jnp.diag(jnp.array([1.8203e-5, 1.8186e-5, 3.4484e-5])) * 100
 
     ## current states
     pos = x_t[0:3]
@@ -62,9 +65,10 @@ def quadrotor(x_t: jnp.array, u_t: jnp.array, W_t: jnp.array) -> jnp.array:
     f_T_i = quat_rotate(q, f_T_b)
     f_net_i = f_T_i + f_g_i
     # f_net_i += W_t * 0.01
-    f_wind = 0.01 * jnp.array([0.05*W_t[0], 0.05*W_t[1], 0 * W_t[2]])
+    # f_wind = 0.01 * jnp.array([0.15*W_t[0], 0.15*W_t[1], 0.01 * W_t[2]])
+    f_wind = 0.01 * jnp.array([0.25*W_t[0], 0.15*W_t[1], 0.01 * W_t[2]])
     f_net_i += f_wind
-    # f_net_i = f_T_b+ f_g_i
+
 
     ## states rates
     Omega = jnp.array([[0, -omega[0], -omega[1], -omega[2]],

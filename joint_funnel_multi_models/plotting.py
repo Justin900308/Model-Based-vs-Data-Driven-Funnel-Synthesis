@@ -119,6 +119,135 @@ def data_plotting(x_traj_sim, u_traj_sim, K_traj, Q_traj):
     return
 
 
+def data_plotting_quadrotor(x_traj_sim, u_traj_sim, K_traj, Q_traj):
+    ## construct the funnel bounds
+    x1_bounds = np.zeros([T, 2])
+    x2_bounds = np.zeros([T, 2])
+    x3_bounds = np.zeros([T, 2])
+    for t in range(T):
+        ## plotting the ellipsoid
+        Q_t = Q_traj[t, 0:3, 0:3]
+        ## x1 upper and lower bounds
+        x1_bounds[t, 0] = x_traj_sim[0, t, 0] + np.sqrt(Q_t[0, 0])
+        x1_bounds[t, 1] = x_traj_sim[0, t, 0] - np.sqrt(Q_t[0, 0])
+        ## x2 upper and lower bounds
+        x2_bounds[t, 0] = x_traj_sim[0, t, 1] + np.sqrt(Q_t[1, 1])
+        x2_bounds[t, 1] = x_traj_sim[0, t, 1] - np.sqrt(Q_t[1, 1])
+        ## x3 upper and lower bounds
+        x3_bounds[t, 0] = x_traj_sim[0, t, 2] + np.sqrt(Q_t[2, 2])
+        x3_bounds[t, 1] = x_traj_sim[0, t, 2] - np.sqrt(Q_t[2, 2])
+    plt.subplot(3, 1, 1)
+    ## plot state
+    for i in range(N + 1):
+        plt.plot(time_traj[0:T - 1], x_traj_sim[i, 0:T - 1, 0])
+    plt.plot(time_traj[0:T - 1], x1_bounds[0:T - 1, 0], "r", linewidth=2, label="x1 upper bound")
+    plt.plot(time_traj[0:T - 1], x1_bounds[0:T - 1, 1], "r-.", linewidth=2, label="x1 lower bound")
+    plt.legend()
+    plt.xlabel("time")
+    plt.ylabel("State (x1)")
+    plt.subplot(3, 1, 2)
+    for i in range(N + 1):
+        plt.plot(time_traj[0:T - 1], x_traj_sim[i, 0:T - 1, 1])
+    plt.plot(time_traj[0:T - 1], x2_bounds[0:T - 1, 0], "r", linewidth=2, label="x2 upper bound")
+    plt.plot(time_traj[0:T - 1], x2_bounds[0:T - 1, 1], "r-.", linewidth=2, label="x2 lower bound")
+    plt.xlabel("time")
+    plt.ylabel("State (x2)")
+    plt.legend()
+    plt.subplot(3, 1, 3)
+    for i in range(N + 1):
+        plt.plot(time_traj[0:T - 1], x_traj_sim[i, 0:T - 1, 2])
+    plt.plot(time_traj[0:T - 1], x3_bounds[0:T - 1, 0], "r", linewidth=2, label="x3 upper bound")
+    plt.plot(time_traj[0:T - 1], x3_bounds[0:T - 1, 1], "r-.", linewidth=2, label="x3 lower bound")
+    plt.xlabel("time")
+    plt.ylabel("State (x3)")
+    plt.legend()
+    plt.show()
+
+    ## plot the controls
+    Q_u_traj = np.zeros([T - 1, ct.m, ct.m])
+    u1_bounds = np.zeros([T - 1, 2])  ## upper and lower
+    u2_bounds = np.zeros([T - 1, 2])
+    u3_bounds = np.zeros([T - 1, 2])
+    u4_bounds = np.zeros([T - 1, 2])
+    for t in range(T - 1):
+        Q_u_traj[t] = K_traj[t] @ Q_traj[t] @ K_traj[t].T
+        u1_bounds[t, 0] = u_traj_sim[0, t, 0] + np.sqrt(Q_u_traj[t, 0, 0])  ## upper
+        u1_bounds[t, 1] = u_traj_sim[0, t, 0] - np.sqrt(Q_u_traj[t, 0, 0])  ## lower
+
+        u2_bounds[t, 0] = u_traj_sim[0, t, 1] + np.sqrt(Q_u_traj[t, 1, 1])  ## upper
+        u2_bounds[t, 0] = np.maximum(u2_bounds[t, 0], np.max(u_traj_sim[:, t, 1]))
+        u2_bounds[t, 1] = u_traj_sim[0, t, 1] - np.sqrt(Q_u_traj[t, 1, 1])  ## lower
+        u2_bounds[t, 1] = np.minimum(u2_bounds[t, 1], np.min(u_traj_sim[:, t, 1]))
+
+        u3_bounds[t, 0] = u_traj_sim[0, t, 2] + np.sqrt(Q_u_traj[t, 2, 2])  ## upper
+        u3_bounds[t, 0] = np.maximum(u3_bounds[t, 0], np.max(u_traj_sim[:, t, 2]))
+        u3_bounds[t, 1] = u_traj_sim[0, t, 2] - np.sqrt(Q_u_traj[t, 2, 2])  ## lower
+        u3_bounds[t, 1] = np.minimum(u3_bounds[t, 1], np.min(u_traj_sim[:, t, 2]))
+
+        u4_bounds[t, 0] = u_traj_sim[0, t, 3] + np.sqrt(Q_u_traj[t, 3, 3])  ## upper
+        u4_bounds[t, 0] = np.maximum(u4_bounds[t, 0], np.max(u_traj_sim[:, t, 3]))
+        u4_bounds[t, 1] = u_traj_sim[0, t, 3] - np.sqrt(Q_u_traj[t, 3, 3])  ## lower
+        u4_bounds[t, 1] = np.minimum(u4_bounds[t, 1], np.min(u_traj_sim[:, t, 3]))
+
+    ## plot control bounds
+    plt.subplot(4, 1, 1)
+    plt.plot(time_traj[0:T - 2], u1_bounds[0:T - 2, 0], "r", linewidth=2, label="u1 upper bound")
+    plt.plot(time_traj[0:T - 2], u1_bounds[0:T - 2, 1], "r-.", linewidth=2, label="u1 lower bound")
+    for i in range(N):
+        plt.plot(time_traj[0:T - 2], u_traj_sim[i, 0:T - 2, 0])
+    plt.legend()
+    plt.xlabel("time")
+    plt.ylabel("Control (u1)")
+
+    plt.subplot(4, 1, 2)
+    plt.plot(time_traj[0:T - 2], u2_bounds[0:T - 2, 0], "r", linewidth=2, label="u2 upper bound")
+    plt.plot(time_traj[0:T - 2], u2_bounds[0:T - 2, 1], "r-.", linewidth=2, label="u2 lower bound")
+    for i in range(N):
+        plt.plot(time_traj[0:T - 2], u_traj_sim[i, 0:T - 2, 1])
+    plt.legend()
+    plt.xlabel("time")
+    plt.ylabel("Control (u2)")
+
+    plt.subplot(4, 1, 3)
+    plt.plot(time_traj[0:T - 2], u3_bounds[0:T - 2, 0], "r", linewidth=2, label="u3 upper bound")
+    plt.plot(time_traj[0:T - 2], u3_bounds[0:T - 2, 1], "r-.", linewidth=2, label="u3 lower bound")
+    for i in range(N):
+        plt.plot(time_traj[0:T - 2], u_traj_sim[i, 0:T - 2, 2])
+    plt.legend()
+    plt.xlabel("time")
+    plt.ylabel("Control (u3)")
+
+    plt.subplot(4, 1, 4)
+    plt.plot(time_traj[0:T - 2], u4_bounds[0:T - 2, 0], "r", linewidth=2, label="u4 upper bound")
+    plt.plot(time_traj[0:T - 2], u4_bounds[0:T - 2, 1], "r-.", linewidth=2, label="u4 lower bound")
+    for i in range(N):
+        plt.plot(time_traj[0:T - 2], u_traj_sim[i, 0:T - 2, 3])
+    plt.legend()
+    plt.xlabel("time")
+    plt.ylabel("Control (u4)")
+
+    plt.show()
+
+    ##plot the process noise
+    plt.subplot(3, 1, 1)
+    for i in range(ct.N):
+        plt.plot(time_traj[0:T - 1], W_traj_s[i, 0:T - 1, 0])
+    plt.xlabel("time")
+    plt.ylabel("Noise (w1)")
+    plt.subplot(3, 1, 2)
+    for i in range(ct.N):
+        plt.plot(time_traj[0:T - 1], W_traj_s[i, 0:T - 1, 1])
+    plt.xlabel("time")
+    plt.ylabel("Noise (w2)")
+    plt.subplot(3, 1, 3)
+    for i in range(ct.N):
+        plt.plot(time_traj[0:T - 1], W_traj_s[i, 0:T - 1, 2])
+    plt.xlabel("time")
+    plt.ylabel("Noise (w3)")
+    plt.show()
+    return
+
+
 def plot_ellipsoid_wireframe(ax, center, Q, color='g', n_pts=40):
     # Eigen-decomposition of Q (Q = R diag(vals) R^T)
     vals, vecs = LA.eigh(Q)  # vals ascending
@@ -152,7 +281,7 @@ def NED_2_plot_frame(v):
     return np.array([v[0], v[1], -v[2]])
 
 
-def plotting3d_fcn(x_traj, Q_traj):
+def plotting3d_fcn(x_traj, x_traj_sim, Q_traj, is_multi):
     fig = plt.figure(figsize=(8, 8))
     ax = fig.add_subplot(111, projection='3d')
     x_axis = np.array([1, 0, 0])
@@ -230,6 +359,10 @@ def plotting3d_fcn(x_traj, Q_traj):
                 center_t = x_traj[tt, 0:3]
                 plot_ellipsoid_wireframe(ax, center_t, Q_t, color='g', n_pts=30)
             ax.view_init(elev=0, azim=0, roll=0)
+            ## plotting the sample trajs
+            if is_multi == True:
+                for i in range(N):
+                    ax.plot(x_traj_sim[i, :, 0], x_traj_sim[i, :, 1], -x_traj_sim[i, :, 2], "r")
             plt.show()
         else:
             plt.pause(0.01)

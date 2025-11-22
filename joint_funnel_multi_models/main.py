@@ -7,10 +7,10 @@ from numpy import linalg as LA
 from util import Integrator, dynamics, linearization
 import jax
 import cvxpy as cp
-
+import control
 jax.config.update('jax_enable_x64', True)
 import jax.numpy as jnp
-from plotting import data_plotting
+from plotting import data_plotting, data_plotting_quadrotor
 
 max_iter = 30
 m = ct.m
@@ -42,22 +42,13 @@ D = ct.D_u
 E = ct.E_u
 G = ct.G_u
 
-# G = ct.G_u1
 
 
-# def K0_fcn(x_traj, u_traj):
-#     K0_traj = np.zeros([T - 1, m, n])
-#     for t in range(T - 1):
-#         K0_t = cp.Variable([m, n])
-#         ## u = BKx
-#         f = cp.norm((u_traj[t] - ct.u_traj[t]) - K0_t @ (x_traj[t] - ct.x_traj[t]), 2)
-#         problem = cp.Problem(cp.Minimize(f))
-#         problem.solve(solver=cp.CLARABEL)
-#         K0_traj[t] = K0_t.value
-#
-#     return K0_traj
 
-K0_traj = np.zeros([T - 1, m, n])
+
+
+
+
 ## Main loop
 for iter in range(max_iter):
     print("Main iteration", iter + 1)
@@ -75,7 +66,7 @@ for iter in range(max_iter):
         ## traj gen
         [x_traj, u_traj, A_list, B_list, F_list] = traj_gen(x_traj, u_traj, Q_traj, K_traj, iter)
         ## get K0
-        K_traj = K0_traj
+        K_traj = np.zeros([T - 1, m, n])
         ## simulate trajs
         [x_traj_sim, u_traj_sim] = traj_sim(x_traj, u_traj, W_traj, K_traj, Q_traj, True, False, False)
         ## get true matrices
@@ -88,6 +79,7 @@ for iter in range(max_iter):
             Y_traj[t] = K_traj[t] @ Q_traj[t]
         ## find local Lip const
         input_list = [A_list_sim, B_list_sim, F_list_sim, x_traj_sim[0], K_traj, Q_traj, u_traj_sim[0]]
+        data_plotting_quadrotor(x_traj_sim, u_traj_sim, K_traj, Q_traj)
         gamma_traj = lipschitz_estimator(input_list, mode)
         ## plotting data
         # data_plotting(x_traj_sim, u_traj, K_traj, Q_traj)
@@ -102,7 +94,7 @@ for iter in range(max_iter):
         plt_flag = True
     ## plotting data
     if plt_flag == True:
-        data_plotting(x_traj_sim, u_traj_sim, K_traj, Q_traj)
+        data_plotting_quadrotor(x_traj_sim, u_traj_sim, K_traj, Q_traj)
 
     ## simulate trajs
     # [_, _] = traj_sim(x_traj, u_traj, W_traj, K_traj, Q_traj, True, True, plt_flag)

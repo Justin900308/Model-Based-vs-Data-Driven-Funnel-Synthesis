@@ -59,16 +59,16 @@ elif run == "quadrotor":
     # x_des = np.array([2.0, 2.0, -1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0])
     ## obstacles
     num_obs = 2
-    obs = np.array([[2, 2, -1.5], [4, 4, -3.5]])
+    obs = np.array([[2, 2, -1.5], [3, 3, -3.5]])
     obs_r = 0.5
-    N = 10
+    N = 100
     n = 13
     m = 4
     nw = 3
     n_p = 10
     n_q = 8
     tf = 4
-    T = 51
+    T = 21
     dt = tf / T
     time_traj = np.linspace(0, tf, T)
     ## system parameters
@@ -116,7 +116,7 @@ elif run == "quadrotor":
     ## initial funnel
     Q0_traj = np.zeros([T, n, n])
     for t in range(T):
-        Q0_traj[t] = np.diag([0.1, 0.1, 0.1, 0.01, 0.01, 0.01, 0, 0, 0, 0, 0.01, 0.01, 0.01])
+        Q0_traj[t] = np.diag([0.1, 0.1, 0.1, 0.01, 0.01, 0.01, 0.0001, 0.0001, 0.0001, 0.0001, 0.01, 0.01, 0.01])
     K0_traj = np.zeros([T - 1, m, n])
 
 x_traj = np.zeros([T, n])
@@ -126,9 +126,9 @@ u_traj = np.zeros([T - 1, m])
 ## process noise for the nominal trajectory
 W_traj = np.zeros([T - 1, nw])
 rng = np.random.default_rng(123456789)
-W_traj[:, 0] = rng.uniform(low=-1.0, high=1.0, size=(T - 1))
-rng = np.random.default_rng(987654321)
-W_traj[:, 1] = rng.uniform(low=-1.0, high=1.0, size=(T - 1))
+# W_traj[:, 0] = rng.uniform(low=-1.0, high=1.0, size=(T - 1))
+# rng = np.random.default_rng(987654321)
+# W_traj[:, 1] = rng.uniform(low=-1.0, high=1.0, size=(T - 1))
 
 ## noise for samples
 W_traj_s = rng.uniform(low=-1.0, high=1.0, size=(N, T - 1, nw))

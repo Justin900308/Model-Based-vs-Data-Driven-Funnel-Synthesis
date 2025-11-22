@@ -128,7 +128,7 @@ def solve_subproblem(A_list, B_list, trajs, x_des) -> tuple:
         for tau_i in range(3):
             a_t_tau_max[tau_i] = 1
             LHS_tau_i = cp.abs(u_t[tau_i + 1] + w_t[tau_i + 1])
-            LHS_tau_i += LA.norm(Q_u_t_half @ a_t_tau_max, 2)
+            # LHS_tau_i += LA.norm(Q_u_t_half @ a_t_tau_max, 2)
             constraints.append(LHS_tau_i <= tau_max)
 
         ## ground constraint
@@ -145,7 +145,7 @@ def solve_subproblem(A_list, B_list, trajs, x_des) -> tuple:
             LHS = h_j + a @ d_t[0:3]  ## obs constraints
             Q_t_root = sqrtm(Q_t[0:3, 0:3])
             LHS += LA.norm(Q_t_root @ a, 2)
-            # constraints.append(LHS <= s_t[j])
+            constraints.append(LHS <= s_t[j])
             # constraints.append(h_j - 2 * (x_t[0:2] - obs_j) @ d_t[0:2] <= s_t[j])
             constraints.append(s_t[j] >= 0)
     #
@@ -156,7 +156,6 @@ def solve_subproblem(A_list, B_list, trajs, x_des) -> tuple:
     d_traj = d.value
     w_traj = w.value
     v_val = v.value
-    print("slack cost", LA.norm(v_val, 2))
     true_cost = 0
     subproblem_cost = problem.value
 

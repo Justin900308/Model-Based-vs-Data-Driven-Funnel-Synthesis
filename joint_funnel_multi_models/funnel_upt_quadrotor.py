@@ -45,7 +45,7 @@ def funnel_cost(Q, Q_traj, Y, Y_traj, mu_Q, mu_K, s, s0, sf):
             ## regularization for the funnels
             f += w_tr * (cp.norm(Q[t] - Q_traj[t], "fro") + cp.norm(Y[t] - Y_traj[t], "fro"))
             ## slack penalty
-            f += 1000000 * -(s[t])
+            f += 100 * -(s[t])
 
     return f
 
@@ -92,13 +92,13 @@ def funnel_problem(x_traj, u_traj, A_traj, B_traj, F_traj, Q_traj, Y_traj, C, D,
     mu_P = cp.Variable(T - 1, pos=True)
     ## Initial constraints
     # constraints = [Q[0] >> ct.Q0_traj[0]]
-    constraints = [ct.Q0_traj[0] - Q[0] << s0 * np.eye(n)]
-    # constraints = []
+    # constraints = [ct.Q0_traj[0] - Q[0] << s0 * np.eye(n)]
+    constraints = []
     # constraints.append(mu_Q[0] <= 0.11)
     # constraints = [Q[0] >> 0]
     ## terminal constraints
     # constraints.append(Q[-2] << ct.Q0_traj[-1])  ## fixed final funnel
-    constraints.append(Q[-2] - ct.Q0_traj[-1] << sf * np.eye(n))  ## fixed final funnel
+    # constraints.append(Q[-2] - ct.Q0_traj[-1] << sf * np.eye(n))  ## fixed final funnel
     # constraints.append(mu_Q[-2]<= 0.05)
     # print(gamma_traj)
     # print(u_traj[:,0])
@@ -151,67 +151,87 @@ def funnel_problem(x_traj, u_traj, A_traj, B_traj, F_traj, Q_traj, Y_traj, C, D,
                        [LMI21, LMI22, LMI32.T],
                        [LMI31, LMI32, LMI33]])
         # if u_t[0] >= 0.001:
-        constraints.append(LMI >> 0 * s_LMI_t * np.eye(2 * n + nw))
+        constraints.append(LMI >> 0)
 
         ## Nonlinear DLMI constraints
-        # LMI11 = alpha * Q_t - lambda_omega * Q_t
-        # LMI21 = np.zeros((n_p, n))
-        # LMI31 = np.zeros((nw, n))
-        # LMI41 = A_t @ Q_t + B_t @ Y_t
-        # LMI51 = C @ Q_t + D @ Y_t
-        #
-        # LMI22 = mu_P_t * np.eye(n_p)
-        # LMI32 = np.zeros((nw, n_p))
-        # LMI42 = mu_P_t * E
-        # LMI52 = np.zeros((n_q, n_p))
-        #
-        # LMI33 = lambda_omega * np.eye(nw)
-        # LMI43 = F_t
-        # LMI53 = G
-        #
-        # LMI44 = Q_tp1
-        # LMI54 = np.zeros((n_q, n))
-        # LMI55 = mu_P_t * 1 / (gamma_t ** 2) * np.eye(n_q)
-        #
-        # row1 = cp.hstack((LMI11, LMI21.T, LMI31.T, LMI41.T, LMI51.T))
-        # row2 = cp.hstack((LMI21, LMI22, LMI32.T, LMI42.T, LMI52.T))
-        # row3 = cp.hstack((LMI31, LMI32, LMI33, LMI43.T, LMI53.T))
-        # row4 = cp.hstack((LMI41, LMI42, LMI43, LMI44, LMI54.T))
-        # row5 = cp.hstack((LMI51, LMI52, LMI53, LMI54, LMI55))
-        # LMI = cp.vstack((row1, row2, row3, row4, row5))
-        # I_lmi = np.eye(n + n_p + nw + n + n_q)
+        LMI11 = alpha * Q_t - lambda_omega * Q_t
+        LMI21 = np.zeros((n_p, n))
+        LMI31 = np.zeros((nw, n))
+        LMI41 = A_t @ Q_t + B_t @ Y_t
+        LMI51 = C @ Q_t + D @ Y_t
+
+        LMI22 = mu_P_t * np.eye(n_p)
+        LMI32 = np.zeros((nw, n_p))
+        LMI42 = mu_P_t * E
+        LMI52 = np.zeros((n_q, n_p))
+
+        LMI33 = lambda_omega * np.eye(nw)
+        LMI43 = F_t
+        LMI53 = G
+        # gamma_t = 60
+        LMI44 = Q_tp1
+        LMI54 = np.zeros((n_q, n))
+        LMI55 = mu_P_t * 1 / (gamma_t ** 2) * np.eye(n_q)
+
+        row1 = cp.hstack((LMI11, LMI21.T, LMI31.T, LMI41.T, LMI51.T))
+        row2 = cp.hstack((LMI21, LMI22, LMI32.T, LMI42.T, LMI52.T))
+        row3 = cp.hstack((LMI31, LMI32, LMI33, LMI43.T, LMI53.T))
+        row4 = cp.hstack((LMI41, LMI42, LMI43, LMI44, LMI54.T))
+        row5 = cp.hstack((LMI51, LMI52, LMI53, LMI54, LMI55))
+        LMI = cp.vstack((row1, row2, row3, row4, row5))
+        I_lmi = np.eye(n + n_p + nw + n + n_q)
         # if u_t[0] > 0.000001:
-        # constraints.append(LMI >> 1 * s_LMI_t * I_lmi)
+        constraints.append(LMI >> 1 * s_LMI_t * I_lmi)
 
         ## obs constraints
-        # for j in range(num_obs):
-        #     obs_j = obs[j]
-        #     h_j = obs_r ** 2 - LA.norm(x_t[0:3] - obs_j, 2) ** 2
-        #     a_t = - 2 * (x_t[0:3] - obs_j)
-        #     b_t = a_t @ x_t[0:3] - h_j
-        #
-        #     Q2 = Q_t[0:3, 0:3]
-        #     a_row = cp.Constant(a_t).reshape((1, 3))  # 1×3
-        #     x2 = x_t[0:3].reshape((3, 1))  # 3×1 numpy → 3×1
-        #
-        #     B11 = (b_t - a_row @ x2) ** 2  # 1×1
-        #     B12 = a_row @ Q2.T  # 1×2
-        #
-        #     B_row1 = cp.hstack((B11, B12))  # 1×3
-        #     B_row2 = cp.hstack((Q2 @ a_row.T, Q2))  # (3×1) hstack (3×3) → 3×3
-        #
-        #     B_matrix = cp.vstack((B_row1, B_row2))  # 4×4 PSD
-        # constraints.append(B_matrix >> 0)
+        for j in range(num_obs):
+            obs_j = obs[j]
+            h_j = obs_r ** 2 - LA.norm(x_t[0:3] - obs_j, 2) ** 2
+            a_t = - 2 * (x_t[0:3] - obs_j)
+            b_t = a_t @ x_t[0:3] - h_j
+
+            Q2 = Q_t[0:3, 0:3]
+            a_row = cp.Constant(a_t).reshape((1, 3))  # 1×3
+            x2 = x_t[0:3].reshape((3, 1))  # 3×1 numpy → 3×1
+
+            B11 = (b_t - a_row @ x2) ** 2  # 1×1
+            B12 = a_row @ Q2.T  # 1×2
+
+            B_row1 = cp.hstack((B11, B12))  # 1×3
+            B_row2 = cp.hstack((Q2 @ a_row.T, Q2))  # (3×1) hstack (3×3) → 3×3
+
+            B_matrix = cp.vstack((B_row1, B_row2))  # 4×4 PSD
+            constraints.append(B_matrix >> 0)
         ## control constraints
-        ## u >= 0
-        # a_t = np.array([[-1], [0]])
-        # b_t = ct.u1_min
-        # BB11 = np.array([(b_t - a_t.T @ u_t)])
-        # BB_row1 = cp.hstack((BB11, a_t.T @ Y_t))
-        # BB_row2 = cp.hstack((Y_t.T @ a_t, Q_t))
-        # BB_matrix = cp.vstack((BB_row1, BB_row2))
-        # constraints.append(BB_matrix >> 0)
-        #
+        ## T <= T_max
+        a_T_t = np.array([[1], [0], [0], [0]])
+        b_T_t = ct.T_max
+        BB11 = np.array([(b_T_t - a_T_t.T @ u_t)])
+        BB_row1 = cp.hstack((BB11, a_T_t.T @ Y_t))
+        BB_row2 = cp.hstack((Y_t.T @ a_T_t, Q_t))
+        BB_matrix = cp.vstack((BB_row1, BB_row2))
+        constraints.append(BB_matrix >> 0)
+        ##
+        for i in range(3):
+            ## tau >= -tau_max
+            a_t = np.zeros([4, 1])
+            a_t[i + 1] = -1
+            b_t = ct.tau_max + ct.tau_max / 10
+            BB11 = np.array([(b_t - a_t.T @ u_t)])
+            BB_row1 = cp.hstack((BB11, a_t.T @ Y_t))
+            BB_row2 = cp.hstack((Y_t.T @ a_t, Q_t))
+            BB_matrix = cp.vstack((BB_row1, BB_row2))
+            constraints.append(BB_matrix >> 0)
+
+            ## tau <= tau_max
+            a_t2 = np.zeros([4, 1])
+            a_t2[i + 1] = 1
+            b_t2 = ct.tau_max + ct.tau_max / 10
+            BB211 = np.array([(b_t2 - a_t2.T @ u_t)])
+            BB_row21 = cp.hstack((BB211, a_t2.T @ Y_t))
+            BB_row22 = cp.hstack((Y_t.T @ a_t2, Q_t))
+            BB2_matrix = cp.vstack((BB_row21, BB_row22))
+            constraints.append(BB2_matrix >> 0)
 
     f0 = funnel_cost(Q, Q_traj, Y, Y_traj, mu_Q, mu_K, s_LMI, s0, sf)
     problem = cp.Problem(cp.Minimize(f0), constraints)
@@ -220,9 +240,11 @@ def funnel_problem(x_traj, u_traj, A_traj, B_traj, F_traj, Q_traj, Y_traj, C, D,
     mu_K_val = mu_K.value
     mu_P_val = mu_P.value
     print(problem.value)
+    print("slack:   ", s_LMI.value)
     for t in range(T):
         Q_traj[t] = Q[t].value
-    print(Q_traj)
+        if t < T - 1:
+            Y_traj[t] = Y[t].value
     # if Q.value.any() != None:
     #     Q_traj = Q.value
     #     Y_traj = Y.value
@@ -244,4 +266,6 @@ def funnel_gen(x_traj, u_traj, A_traj, B_traj, F_traj, Q_traj, Y_traj, C, D, E, 
         if iter > 0:
             if np.abs(cost_list[iter - 1] - cost_list[iter]) < 1:
                 break
+    for t in range(T - 1):
+        print("K_t: ", K_traj[t])
     return Q_traj, Y_traj, K_traj
